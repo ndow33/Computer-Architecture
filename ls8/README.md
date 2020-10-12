@@ -61,6 +61,21 @@ but you'll have to implement those three above instructions first!
 
 * Make a list of files here.
 * Write a short 3-10-word description of what each file does.
+
+  asm files: 
+  These take LS-8 assembler source and converts it into `.ls8` "binary"
+  files.
+
+  ls8 examples: 
+  examples of what the code for our CPU will look like
+
+  cpu.py: 
+  creates a cpu class with commands for starting and stopping our program
+
+  ls8.py
+  creates and runs an instance of the CPU class
+
+
 * Note what has been implemented, and what hasn't.
 * Read this whole file.
 * Skim the spec.
