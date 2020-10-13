@@ -7,8 +7,14 @@ class CPU:
 
     def __init__(self):
         """Construct a new CPU."""
-        self.ram = [0] * 8
+        # ram stores the istructions
+        self.ram = [0] * 256
+        # stores the values
+        self.reg = [0] * 8
+        # has a pointer
         self.pc = 0
+        # halter
+        self.halt = False
 
     def load(self):
         """Load a program into memory."""
@@ -19,11 +25,11 @@ class CPU:
 
         program = [
             # From print8.ls8
-            0b10000010, # LDI R0,8
-            0b00000000,
-            0b00001000,
-            0b01000111, # PRN R0
-            0b00000000,
+            0b10000010, # LDI: these first three lines say insert 8 into memory at register/index 0
+            0b00000000, # R0
+            0b00001000, # 8 
+            0b01000111, # PRN: these last three lines print R0 and halt the program
+            0b00000000, # R0 
             0b00000001, # HLT
         ]
 
@@ -40,13 +46,40 @@ class CPU:
         #elif op == "SUB": etc
         else:
             raise Exception("Unsupported ALU operation")
-
-    def ram_read(self, pc):
-        print(self.ram[pc])
     
+    # read a value from ram
+    def ram_read(self, pc):
+        return self.ram[pc]
+
+    # write a value to ram
     def ram_write(self, pc, value):
         self.ram[pc] = value
 
+    # write a value to reg
+    def ldi(self):
+        # get the index
+        pc = self.ram[self.pc+1]
+        # get the value
+        value = self.ram[self.pc+2]
+        # store value at index
+        self.reg[pc] = value
+        # move up 3 indexes in ram
+        self.pc += 3
+    
+    # print a value from reg
+    def prn(self):
+        # get the index to print from ram
+        index = self.ram[self.pc+1]
+        # print the value at index in reg
+        print(self.reg[index])
+        # move up 2 indexes in ram
+        self.pc += 2
+    
+    # stop the run of the CPU
+    def hlt(self):
+        self.halt = True
+
+    # useful for debugging
     def trace(self):
         """
         Handy function to print out the CPU state. You might want to call this
@@ -69,5 +102,26 @@ class CPU:
 
     def run(self):
         """Run the CPU."""
-        for instruction in self.ram:
-            print(instruction)
+        # instantiate boolean to start and stop the while loop
+
+        while self.halt == False:
+            # get the command
+            instruction = self.ram[self.pc]
+
+            # LDI
+            if instruction == 0b10000010:
+                self.ldi()
+
+            # PRN
+            elif instruction == 0b01000111:
+                # print(f'PRN PC: {self.pc}')
+                self.prn()
+
+            # HLT    
+            elif instruction == 0b00000001:
+                # print(f'HLT PC: {self.pc}')
+                self.hlt()
+
+            else:
+                print(f'unrecognized instruction: {instruction}')
+                break
