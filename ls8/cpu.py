@@ -15,27 +15,41 @@ class CPU:
         self.pc = 0
         # halter
         self.halt = False
+        self.instructions = {
+                                'LDI': 0b10000010, 
+                                'PRN': 0b01000111,
+                                'HLT': 0b00000001,
+                                'MULT': 0b10100010
+                            }
 
-    def load(self):
+    def load(self, filename):
         """Load a program into memory."""
-
+        # create a set of numbers
+        nums = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+        # nums = set(nums)
         address = 0
+        # get the file type
+        file_type = filename.split('.')[1]
 
-        # For now, we've just hardcoded a program:
+        if file_type != 'ls8':
+            print(f'ERROR: {filename} is not an ls8 file')
+        else:
+            # read in the instructions into ram
+            with open(filename, 'r') as f:
+                for line in f:
+                    # get rid of leading and trailing spaces
+                    line = line.strip()
+                    # if the first value is a number
+                    if len(line) > 0:
+                        if line[0] in nums:
+                            # get the number by itself
+                            line = line.split(' ')
+                            value = int(line[0], 2)
+                            # add it to the ram
+                            self.ram[address] = value
+                            address += 1      
 
-        program = [
-            # From print8.ls8
-            0b10000010, # LDI: these first three lines say insert 8 into memory at register/index 0
-            0b00000000, # R0
-            0b00001000, # 8 
-            0b01000111, # PRN: these last three lines print R0 and halt the program
-            0b00000000, # R0 
-            0b00000001, # HLT
-        ]
-
-        for instruction in program:
-            self.ram[address] = instruction
-            address += 1
+        
 
 
     def alu(self, op, reg_a, reg_b):
@@ -57,12 +71,12 @@ class CPU:
 
     # write a value to reg
     def ldi(self):
-        # get the index
-        pc = self.ram[self.pc+1]
+        # get the register
+        register = self.ram[self.pc+1]
         # get the value
         value = self.ram[self.pc+2]
-        # store value at index
-        self.reg[pc] = value
+        # store value in register
+        self.reg[register] = value
         # move up 3 indexes in ram
         self.pc += 3
     
@@ -74,6 +88,14 @@ class CPU:
         print(self.reg[index])
         # move up 2 indexes in ram
         self.pc += 2
+
+    def mult(self):
+        idx_a = self.ram[self.pc+1]
+        idx_b = self.ram[self.pc+2]
+        product = self.reg[idx_a] * self.reg[idx_b]
+        self.reg[idx_a] = product
+        self.pc += 3
+
     
     # stop the run of the CPU
     def hlt(self):
@@ -102,24 +124,25 @@ class CPU:
 
     def run(self):
         """Run the CPU."""
-        # instantiate boolean to start and stop the while loop
 
         while self.halt == False:
             # get the command
             instruction = self.ram[self.pc]
 
             # LDI
-            if instruction == 0b10000010:
+            if instruction == self.instructions['LDI']:
                 self.ldi()
 
             # PRN
-            elif instruction == 0b01000111:
-                # print(f'PRN PC: {self.pc}')
+            elif instruction == self.instructions['PRN']:
                 self.prn()
+            
+            # MULT
+            elif instruction == self.instructions['MULT']:
+                self.mult()
 
             # HLT    
-            elif instruction == 0b00000001:
-                # print(f'HLT PC: {self.pc}')
+            elif instruction == self.instructions['HLT']:
                 self.hlt()
 
             else:
