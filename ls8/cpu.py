@@ -7,6 +7,8 @@ class CPU:
 
     def __init__(self):
         """Construct a new CPU."""
+        # store the filename given in the command line
+        self.filename = sys.argv[1]
         # ram stores the istructions
         self.ram = [0] * 256
         # stores the values
@@ -22,8 +24,10 @@ class CPU:
                                 'MULT': 0b10100010
                             }
 
-    def load(self, filename):
+    def load(self, filename = 'No File'):
         """Load a program into memory."""
+        # load the file given in the command line
+        filename = self.filename
         # create a set of numbers
         nums = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
         # nums = set(nums)
@@ -126,6 +130,7 @@ class CPU:
         """Run the CPU."""
 
         while self.halt == False:
+            # self.trace()
             # get the command
             instruction = self.ram[self.pc]
 
