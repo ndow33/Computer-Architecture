@@ -17,11 +17,18 @@ class CPU:
         self.pc = 0
         # halter
         self.halt = False
+        # stack pointer
+        self.sp = 0xf4
+        # store stack pointer in reg7
+        self.reg[7] = self.sp
+
         self.instructions = {
                                 'LDI': 0b10000010, 
                                 'PRN': 0b01000111,
                                 'HLT': 0b00000001,
-                                'MULT': 0b10100010
+                                'MULT': 0b10100010,
+                                'PUSH': 0b01000101,
+                                'POP': 0b01000110
                             }
 
     def load(self, filename = 'No File'):
@@ -75,6 +82,10 @@ class CPU:
 
     # write a value to reg
     def ldi(self):
+        '''
+        LDI register immediate
+        Set the value of a register to an integer.
+        '''
         # get the register
         register = self.ram[self.pc+1]
         # get the value
@@ -86,6 +97,11 @@ class CPU:
     
     # print a value from reg
     def prn(self):
+        '''
+        PRN register pseudo-instruction
+        Print numeric value stored in the given register.
+        Print to the console the decimal integer value that is stored in the given register.
+        '''
         # get the index to print from ram
         index = self.ram[self.pc+1]
         # print the value at index in reg
@@ -93,6 +109,7 @@ class CPU:
         # move up 2 indexes in ram
         self.pc += 2
 
+    # multiply two values stored in the register
     def mult(self):
         idx_a = self.ram[self.pc+1]
         idx_b = self.ram[self.pc+2]
@@ -100,9 +117,54 @@ class CPU:
         self.reg[idx_a] = product
         self.pc += 3
 
+    # push
+    def push(self):
+        '''
+        PUSH register
+        Push the value in the given register on the stack.
+        Decrement the SP.
+        Copy the value in the given register to the address pointed to by SP.
+        '''
+        # get the stack pointer minus 1
+        pointer = self.sp-1
+        # get the register index holding the value
+        index = self.ram[self.pc+1]
+        # get the value from the register
+        value = self.reg[index]
+        # write to ram
+        self.ram_write(pointer, value)
+        # decrement stack pointer
+        self.sp-=1
+        # increment ram pointer
+        self.pc+=2
+    
+    # pop
+    def pop(self):
+        '''
+        POP register
+        Pop the value at the top of the stack into the given register.
+        Copy the value from the address pointed to by SP to the given register.
+        Increment SP.
+        '''
+        # get the stack pointer
+        pointer = self.sp
+        # get the register index that WILL hold the value
+        index = self.ram[self.pc+1]
+        # get the value from ram
+        value = self.ram[pointer]
+        # store it in reg
+        self.reg[index] = value
+        # increment stack pointer
+        self.sp+=1
+        # increment ram pointer 
+        self.pc+=2
+
     
     # stop the run of the CPU
     def hlt(self):
+        '''
+        Halt the CPU (and exit the emulator).
+        '''
         self.halt = True
 
     # useful for debugging
@@ -146,8 +208,17 @@ class CPU:
             elif instruction == self.instructions['MULT']:
                 self.mult()
 
+            # PUSH
+            elif instruction == self.instructions['PUSH']:
+                self.push()
+
+            # POP
+            elif instruction == self.instructions['POP']:
+                self.pop()
+
             # HLT    
             elif instruction == self.instructions['HLT']:
+                # print(self.sp - 1)
                 self.hlt()
 
             else:
