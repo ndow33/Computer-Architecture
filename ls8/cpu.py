@@ -13,7 +13,7 @@ class CPU:
         self.ram = [0] * 256
         # stores the values
         self.reg = [0] * 8
-        # has a pointer
+        # has a pointer that points to our ram address
         self.pc = 0
         # halter
         self.halt = False
