@@ -21,6 +21,8 @@ class CPU:
         self.sp = 0xf4
         # store stack pointer in reg7
         self.reg[7] = self.sp
+        # flags
+        self.flag = 0b00000000
 
         self.instructions = {
                                 'LDI': 0b10000010, 
@@ -28,7 +30,14 @@ class CPU:
                                 'HLT': 0b00000001,
                                 'MULT': 0b10100010,
                                 'PUSH': 0b01000101,
-                                'POP': 0b01000110
+                                'POP': 0b01000110,
+                                'CALL': 0b01010000,
+                                'RET': 0b00010001,
+                                'ADD': 0b10100000,
+                                'CMP': 0b10100111,
+                                'JEQ': 0b01010101,
+                                'JNE': 0b01010110,
+                                'JMP': 0b01010100
                             }
 
     def load(self, filename = 'No File'):
@@ -117,6 +126,81 @@ class CPU:
         self.reg[idx_a] = product
         self.pc += 3
 
+    def add(self):
+        idx_a = self.ram[self.pc+1]
+        idx_b = self.ram[self.pc+2]
+        total = self.reg[idx_a] + self.reg[idx_b]
+        self.reg[idx_a] = total
+        self.pc += 3
+
+    # cmp
+    def cmp(self):
+        '''
+        Compare the values in two registers.
+        If they are equal, set the Equal E flag to 1, otherwise set it to 0.
+        If registerA is less than registerB, set the Less-than L flag to 1, otherwise set it to 0.
+        If registerA is greater than registerB, set the Greater-than G flag to 1, otherwise set it to 0.
+        '''
+        # get the indexes of the registers
+        idx_a = self.ram[self.pc+1]
+        idx_b = self.ram[self.pc+2]
+        # get the values from the registers
+        val_a = self.reg[idx_a]
+        val_b = self.reg[idx_b]
+        # L
+        if val_a < val_b:
+            # set the flag
+            self.flag = 0b00000100
+        # G
+        elif val_a > val_b:
+            self.flag = 0b00000010
+        # E
+        elif val_a == val_b:
+            self.flag = 0b00000001
+
+        # increment the ram pointer by 3
+        self.pc += 3
+
+    def jeq(self):
+        '''
+        If equal flag is set (true), jump to the address stored in the given register.
+        '''
+        if self.flag == 0b00000001:
+            # get the register index
+            index = self.ram[self.pc+1]
+            # use it to get the address
+            address = self.reg[index]
+            # set the pc to the address
+            self.pc = address
+        else:
+            self.pc += 2
+
+    def jne(self):
+        '''
+        If E flag is clear (false, 0), jump to the address stored in the given register.
+        '''
+        if self.flag != 0b00000001:
+            # get the register index
+            index = self.ram[self.pc+1]
+            # use it to get the address
+            address = self.reg[index]
+            # set the pc to the address
+            self.pc = address
+        else:
+            self.pc += 2
+    
+    def jmp(self):
+        '''
+        Jump to the address stored in the given register.
+        Set the PC to the address stored in the given register.
+        '''
+        # get the register index
+        index = self.ram[self.pc+1]
+        # use it to get the address
+        address = self.reg[index]
+        # Set the pc to the address
+        self.pc = address
+
     # push
     def push(self):
         '''
@@ -125,6 +209,8 @@ class CPU:
         Decrement the SP.
         Copy the value in the given register to the address pointed to by SP.
         '''
+        ### HANDLE EXCEPTIONS ###
+        ### STACK OVERFLOW?? ###
         # get the stack pointer minus 1
         pointer = self.sp-1
         # get the register index holding the value
@@ -138,6 +224,16 @@ class CPU:
         # increment ram pointer
         self.pc+=2
     
+    # helper function push_value
+    def push_value(self, value):
+        # get the stack pointer minus 1
+        pointer = self.sp-1
+        # write to ram
+        self.ram_write(pointer, value)
+        # decrement stack pointer
+        self.sp-=1
+
+
     # pop
     def pop(self):
         '''
@@ -146,6 +242,7 @@ class CPU:
         Copy the value from the address pointed to by SP to the given register.
         Increment SP.
         '''
+        ### HANDLE EXCEPTIONS ###
         # get the stack pointer
         pointer = self.sp
         # get the register index that WILL hold the value
@@ -158,6 +255,49 @@ class CPU:
         self.sp+=1
         # increment ram pointer 
         self.pc+=2
+    
+    # helper function for ret
+    def pop_value(self):
+        # get the stack pointer
+        pointer = self.sp
+        # get the value 
+        value = self.ram[pointer]
+
+        # increment the stack pointer
+        self.sp += 1
+
+        return value
+        
+
+    def call(self):
+        '''
+        Calls a subroutine (function) at the address stored in the register.
+        The address of the instruction directly after CALL is pushed onto the stack. 
+        This allows us to return to where we left off when the subroutine finishes executing.
+        The PC is set to the address stored in the given register. 
+        We jump to that location in RAM and execute the first instruction in the subroutine. 
+        The PC can move forward or backwards from its current location.
+        '''
+        # get address of the next instruction after call
+        return_add = self.pc + 2
+
+        # push it on the stack
+        self.push_value(return_add)
+
+        # get subroutine address from register
+        reg_num = self.ram[self.pc + 1]
+        subroutine_add = self.reg[reg_num]
+
+        # jump to the subroutine
+        self.pc = subroutine_add
+    
+    def ret(self):
+        # get return address from top of stack
+        return_add = self.pop_value()
+
+        # store it in as the ram pointer
+        self.pc = return_add
+
 
     
     # stop the run of the CPU
@@ -174,9 +314,9 @@ class CPU:
         from run() if you need help debugging.
         """
 
-        print(f"TRACE: %02X | %02X %02X %02X |" % (
+        print(f"TRACE: %02X %02X | %02X %02X %02X |" % (
             self.pc,
-            #self.fl,
+            self.flag,
             #self.ie,
             self.ram_read(self.pc),
             self.ram_read(self.pc + 1),
@@ -192,7 +332,7 @@ class CPU:
         """Run the CPU."""
 
         while self.halt == False:
-            # self.trace()
+            self.trace()
             # get the command
             instruction = self.ram[self.pc]
 
@@ -207,6 +347,26 @@ class CPU:
             # MULT
             elif instruction == self.instructions['MULT']:
                 self.mult()
+            
+            # ADD
+            elif instruction == self.instructions['ADD']:
+                self.add()
+
+            # CMP
+            elif instruction == self.instructions['CMP']:
+                self.cmp()
+            
+            # JEQ
+            elif instruction == self.instructions['JEQ']:
+                self.jeq()
+
+            # JNE
+            elif instruction == self.instructions['JNE']:
+                self.jne()
+
+            # JMP
+            elif instruction == self.instructions['JMP']:
+                self.jmp()
 
             # PUSH
             elif instruction == self.instructions['PUSH']:
@@ -216,11 +376,19 @@ class CPU:
             elif instruction == self.instructions['POP']:
                 self.pop()
 
+            # CALL
+            elif instruction == self.instructions['CALL']:
+                self.call()
+
+            # RET
+            elif instruction == self.instructions['RET']:
+                self.ret()
+
             # HLT    
             elif instruction == self.instructions['HLT']:
                 # print(self.sp - 1)
                 self.hlt()
 
             else:
-                print(f'unrecognized instruction: {instruction}')
+                print(f'unrecognized instruction: {bin(instruction)}')
                 break
